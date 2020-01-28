@@ -339,7 +339,7 @@ int divide(int player_no, int cell_no)
             {
                 int e = cursor->energy;
                 struct cell cell1, cell2;
-                cell1.energy = (int)(e/2);
+                cell1.energy = (int)(e / 2);
                 cell2.energy = e - cell1.energy;
                 cell1.i = i;
                 cell1.j = j;
@@ -352,12 +352,56 @@ int divide(int player_no, int cell_no)
     printf("NOT ENOUGH SPACE FOR THIS DIVISION!\n");
     return -1;
 }
+int map_design()
+{
+        printf("\033[38;2;0;255;0m");
+    for (int i = dim - 1; i >= 0; i--)
+    {
+        (i % 2 == 0) ? printf(" \\ ") : printf("");
 
+        for (int j = dim - 1; j >= 0; j--)
+        {
+            printf("  /\\ ");
+        }
+        (i % 2 == 1 && i != dim - 1) ? printf("  /") : printf("");
+        printf("\n");
+        (i % 2 == 0) ? printf("  \\") : printf("");
+
+        for (int j = dim - 1; j >= 0; j--)
+        {
+            printf(" /  \\");
+        }
+        (i % 2 == 1 && i != dim - 1) ? printf(" /") : printf("");
+        printf("\n");
+        (i % 2 == 0) ? printf("   ") : printf("");
+        for (int j = dim - 1; j >= 0; j--)
+        {
+            printf("|    ");
+        }
+        printf("|\n");
+        (i % 2 == 0) ? printf("   ") : printf("");
+        for (int j = dim - 1; j >= 0; j--)
+        {
+            printf("|    ");
+        }
+        printf("|\n");
+    }
+    printf("   ");
+    for (int j = dim - 1; j >= 0; j--)
+    {
+        printf(" \\  /");
+    }
+    printf("\n");
+    printf("   ");
+    for (int j = dim - 1; j >= 0; j--)
+    {
+        printf("  \\/ ");
+    }
+    printf("\n\033[0m");
+}
 int main()
 {
     srand(time(NULL));
-    // map = map_reader();
-    // if (map != NULL)
-    //     printf("%d\n", *(int *)(map[0][3] + sizeof(char)));
-    system("pause");
+    map = map_reader();
+    map == NULL ? exit(0) : map_design();
 }
