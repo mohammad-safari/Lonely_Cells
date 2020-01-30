@@ -2,129 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-//keep player cells data
-struct cell
-{
-    char name[4];
-    int no;
-    int i;
-    int j;
-    int energy;
-    struct cell *next;
-    struct cell *prev;
-} * player[2];
-//relate types of houses to char for better interpretation
-enum house
-{
-    ENERGY = '1',
-    MITOSIS,
-    BLOCKED,
-    NORMAL
-};
-//map dimension
-int dim;
-//each house have feature variables  1-type 2-energy level if type 1(energy)
-void ***map;
-//keep coord. of player cells
-int **coord;
-//demonstrates using which saved map
-int saves = 0;
-//demonstrates using which map
-int maps = 1;
-//one player(0) or two player(1)
-int mode = 0;
-//computer plays or not
-int computer = 0;
-//add cells
-int add_cell(struct cell **, struct cell);
-//remove cell
-int remove_cell(struct cell **, int);
-//print list of cells acoording to their name
-void print_list(struct cell *);
-//load map in ram
-void ***map_reader();
-//load player cells saved data
-struct cell ***load_player(FILE **);
+#include "game_header.h"
+#include "cell_list.c"
 
-int add_cell(struct cell **player, struct cell data)
-{
-    //putting data in a cell in heap!
-    struct cell *cell = (struct cell *)malloc(sizeof(struct cell));
-    if (cell == NULL)
-    {
-        printf("NOT Enough Memeory Available!");
-        return -1;
-    }
-    strcpy(cell->name, data.name);
-    cell->i = data.i;
-    cell->j = data.j;
-    cell->energy = data.energy;
-    cell->next = NULL;
-    cell->prev = NULL;
-    int no = 1;
-    //make sure that list ecursorists or create list anyway!
-    if (*player == NULL)
-    {
-        cell->no = no;
-        *player = cell; //link head to cell!
-        return 1;
-    }
-    //move toward the last cell
-    struct cell *cursor = *player;
-    struct cell *insert = cursor; // default for second cell
-    while (cursor->next != NULL)
-    {
-        if (cursor->next->next == NULL)
-            insert = cursor->next->prev;
-        cursor = cursor->next;
-        insert = insert->next;
-        no++;
-    }
-    cell->prev = insert;
-    cursor->next = cell; //append cell to list
-    cell->no = ++no;
-    return 0;
-}
-int remove_cell(struct cell **player, int no)
-{
-    struct cell *cursor = *player;
-    while (cursor != NULL && cursor->no != no)
-    {
-        cursor = cursor->next;
-    }
-    if (cursor == NULL)
-    {
-        return -1; //not found!
-    }
-    if (cursor->prev == NULL)
-    {
-        *player = cursor->next; //changing head of list
-        cursor->next->prev = NULL;
-        free((struct cell *)cursor);
-        return 1;
-    }
-    if (cursor->next == NULL)
-    {
-        cursor->prev->next = NULL; //put away end of list
-        free((struct cell *)cursor);
-        return 2;
-    }
-    cursor->prev->next = cursor->next;
-    cursor->next->prev = cursor->prev;
-    //:)
-    free((struct cell *)cursor);
-    return 0;
-}
-void print_list(struct cell *cursor)
-{
-    while (cursor != NULL)
-    {
-        printf("%d) ", cursor->no);
-        printf("%s ", cursor->name);
-        printf("(%d, %d)\n", cursor->j + 1, cursor->i + 1);
-        cursor = cursor->next;
-    }
-}
 void ***map_reader()
 {
     FILE *mf;
@@ -178,7 +58,7 @@ void ***map_reader()
     fclose(mf);
     return map;
 }
-int init_coord() ////kjbbjj ///one ply!
+int init_coord()
 {
     //making all houses zero
     coord = (int **)calloc(dim, sizeof(int *));
@@ -217,7 +97,7 @@ int init_coord() ////kjbbjj ///one ply!
     }
     return 0;
 }
-int load_coord() ////kjbbjj ///one ply!
+int load_coord() ///one ply!
 {
     for (int p = 0; p < 2; p++)
     {
@@ -301,18 +181,33 @@ int gather(int player_no, int cell_no) //use find cell
         printf("House is Empty!");
         return -1;
     }
-    if (*e < 15 && *e != 0)
+    if (cursor->energy == 100)
     {
-        cursor->energy += *e;
-        *e = 0;
-        return 0;
+        printf("Cell has Maximum Energy!");
+        return -1;
+    }
+    if (*e < 15)
+    {
+        if (cursor->energy + *e <= 100)
+        {
+            cursor->energy += *e;
+            *e = 0;
+            return 0;
+        }
     }
     if (*e >= 15)
     {
-        cursor->energy += 15;
-        *e -= 15;
-        return 0;
+        if (cursor->energy + 15 <= 100)
+        {
+            cursor->energy += 15;
+            *e -= 15;
+            return 0;
+        }
     }
+    //if energy overflows
+    e -= 100 - cursor->energy;
+    cursor->energy = 100;
+    return 0;
 }
 int divide(int player_no, int cell_no)
 {
@@ -354,38 +249,87 @@ int divide(int player_no, int cell_no)
 }
 int map_design()
 {
-        printf("\033[38;2;0;255;0m");
+    FRGB(100, 255, 200);
+    //each line
     for (int i = dim - 1; i >= 0; i--)
     {
-        (i % 2 == 0) ? printf(" \\ ") : printf("");
-
+        /* upper level of upper zigzag ->(on odd rows except top row)\
+        (in loop)  /\  /\  /\  /\  ...
+        (on even rows except top row) / */
+        (i % 2 == 0) ? (i != dim - 1) ? printf(" \\ ") : printf("  ") : printf("");
         for (int j = dim - 1; j >= 0; j--)
         {
             printf("  /\\ ");
         }
         (i % 2 == 1 && i != dim - 1) ? printf("  /") : printf("");
         printf("\n");
-        (i % 2 == 0) ? printf("  \\") : printf("");
-
+        /* down level of upper zigzag ->(on odd rows except top row) \
+        (in loop)/  \/  \/  \/  \...
+        (on even rows except top row)/*/
+        (i % 2 == 0) ? (i != dim - 1) ? printf("  \\") : printf("  ") : printf("");
         for (int j = dim - 1; j >= 0; j--)
         {
-            printf(" /  \\");
+            printf(" /");
+            TRESET();
+            char type[3];
+            switch (*(char *)map[i][j])
+            {
+            case BLOCKED:
+                strcpy(type, "BL");
+                FRGB(255, 0, 0);
+                break;
+            case ENERGY:
+                strcpy(type, "EN");
+                FRGB(200, 20, 190);
+                break;
+            case MITOSIS:
+                strcpy(type, "MI");
+                FRGB(250, 250, 10);
+                break;
+            default:
+                strcpy(type, "NR");
+                FRGB(0, 255, 0);
+                break;
+            }
+            printf("%s", type);
+            TRESET();
+            FRGB(100, 255, 200);
+            printf("\\");
         }
         (i % 2 == 1 && i != dim - 1) ? printf(" /") : printf("");
         printf("\n");
-        (i % 2 == 0) ? printf("   ") : printf("");
-        for (int j = dim - 1; j >= 0; j--)
+        // the main content of each house
+        for (int l = 0; l < 2; l++)
         {
-            printf("|    ");
+            (i % 2 == 0) ? printf("   ") : printf("");
+            for (int j = dim - 1; j >= 0; j--)
+            {
+                printf("|");
+                TRESET();
+                switch (*(char *)map[i][j])
+                {
+                case BLOCKED:
+                    FRGB(255, 0, 0);
+                    break;
+                case ENERGY:
+                    FRGB(200, 20, 190);
+                    break;
+                case MITOSIS:
+                    FRGB(250, 250, 10);
+                    break;
+                default:
+                    FRGB(0, 255, 0);
+                    break;
+                }
+                (l == 0 && coord[i][j] != 0 && *(char *)map[i][j] != BLOCKED) ? printf("%s", find_cell(coord[i][j] > 0 ? 0 : 1, (coord[i][j] > 0 ? 1 : -1) * coord[i][j])->name) : printf("    ");
+                TRESET();
+                FRGB(100, 255, 200);
+            }
+            printf("|\n");
         }
-        printf("|\n");
-        (i % 2 == 0) ? printf("   ") : printf("");
-        for (int j = dim - 1; j >= 0; j--)
-        {
-            printf("|    ");
-        }
-        printf("|\n");
+        // end of main content
     }
+    //last zigzag row(neccesserily  \/\/\/\/)
     printf("   ");
     for (int j = dim - 1; j >= 0; j--)
     {
@@ -397,11 +341,12 @@ int map_design()
     {
         printf("  \\/ ");
     }
-    printf("\n\033[0m");
+    TRESET();
 }
 int main()
 {
     srand(time(NULL));
+    init_coord();
     map = map_reader();
     map == NULL ? exit(0) : map_design();
 }
