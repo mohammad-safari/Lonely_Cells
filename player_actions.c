@@ -114,10 +114,11 @@ int divide(int player_no, int cell_no)
                     cell1.j = j;
                     cell2.i = i + q;
                     cell2.j = j + p;
+                    rand_name(cell2.name);
                     rand_name(find_cell(player_no, cell_no)->name);
                     find_cell(player_no, cell_no)->energy = cell1.energy;
                     int no = add_cell(&(player[player_no]), cell2);
-                    coord[i + q][j + p] = no;
+                    coord[i + q][j + p] = (player_no == 1 ? -1 : 1) * no;
                     return 0;
                 }
         }

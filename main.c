@@ -252,11 +252,6 @@ int map_design()
                 if (l == 1 && coord[i][j] != 0 && *(char *)map[i][j] != BLOCKED)
                 {
                     coord[i][j] > 0 ? FRGB(255, 150, 70) : FRGB(255, 255, 100);
-                    /* if (i == 1 && j == 2)
-                    {
-                        int a = coord[i][j];
-                        find_cell(coord[i][j] > 0 ? 0 : 1, (coord[i][j] > 0 ? 1 : -1));
-                    } */
                     printf("%s", find_cell(coord[i][j] > 0 ? 0 : 1, (coord[i][j] > 0 ? 1 : -1) * coord[i][j])->name);
                 }
                 else if (l == 0 && *(char *)map[i][j] == ENERGY)
