@@ -4,16 +4,17 @@
 #include <time.h>
 #include "game_header.h"
 #include "cell_list.c"
+#include "player_actions.c"
 
 void ***map_reader()
 {
     FILE *mf;
 
     char add[25];
-    saves == 0 ? sprintf(add, "maps\\map_%0*d.lcm", 3, maps) : sprintf(add, "saves\\saved_map_%0*d.lcm", 3, saves);
+    save_sel == 0 ? sprintf(add, "maps\\map_%0*d.lcm", 3, map_sel) : sprintf(add, "saves\\save_%0*d.lcs", 3, save_sel);
     mf = fopen(add, "rb");
 
-    if (mf == NULL) //check if file ecursorists or is readable
+    if (mf == NULL) //check if file available or is readable
     {
         printf("Can't Read Map\n");
         return (void ***)NULL;
@@ -43,7 +44,7 @@ void ***map_reader()
             {
                 int hold = 100; //default energy level
                 map[i][j] = (void *)malloc(sizeof(char) + sizeof(int));
-                if (saves != 0)                       //there any saved map
+                if (save_sel != 0)                    //there any saved map
                     fread(&hold, sizeof(int), 1, mf); //read energy from saved data
                 *(int *)(map[i][j] + sizeof(char)) = (int)hold;
             }
@@ -52,20 +53,51 @@ void ***map_reader()
             *(char *)map[i][j] = (char)temp;
         }
     }
-    // FILE **pmf = &mf;
-    // if (saves != 0)
-    //     players = load_player(pmf);
+    if (save_sel != 0)
+    {
+        fread(&mode, sizeof(int), 1, mf);
+        fread(&turn, sizeof(int), 1, mf);
+        if (mode < 1 || mode > 2)
+        {
+            printf("file has been damaged!\n");
+            return NULL;
+        }
+        for (int i = 0; i < mode; i++)
+        {
+            int cell_num;
+            fread(&cell_num, sizeof(int), 1, mf);
+            struct cell writer;
+            while (cell_num--)
+            {
+                fread(&writer, sizeof(struct cell), 1, mf);
+                add_cell(&player[i], writer);
+            }
+        }
+    }
     fclose(mf);
     return map;
 }
 int init_coord()
 {
     //making all houses zero
-    coord = (int **)calloc(dim, sizeof(int *));
-    for (int i = 0; i < dim; i++)
+    if (coord == NULL)
     {
-        coord[i] = (int *)calloc(dim, sizeof(int));
+        coord = (int **)calloc(dim, sizeof(int *));
+        for (int i = 0; i < dim; i++)
+        {
+            coord[i] = (int *)calloc(dim, sizeof(int));
+        }
     }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+            for (int j = 0; j < dim; j++)
+            {
+                coord[i][j] = 0;
+                // printf("%d", coord[i][j]);
+            }
+    }
+
     //setting coordinations
     for (int p = 0; p < mode; p++)
     {
@@ -80,7 +112,7 @@ int init_coord()
                 count++;
                 if (count > dim * dim * dim)
                 {
-                    printf("NOT ENOUGH SPACE FOR SUCH NUMBER OF CELLS!\n");
+                    printf("INSUFFICIENT SPACE FOR SUCH NUMBER OF CELLS!\n");
                     return -1;
                 }
             } while (coord[i][j] != 0 || *(char *)map[i][j] == BLOCKED);
@@ -97,9 +129,27 @@ int init_coord()
     }
     return 0;
 }
-int load_coord() ///one ply!
+int load_coord()
 {
-    for (int p = 0; p < 2; p++)
+    //allocating coord.
+    //making all houses zero
+    if (coord == NULL)
+    {
+        coord = (int **)calloc(dim, sizeof(int *));
+        for (int i = 0; i < dim; i++)
+        {
+            coord[i] = (int *)calloc(dim, sizeof(int));
+        }
+    }
+    else
+    {
+        for (int i = 0; i < dim; i++)
+            for (int j = 0; j < dim; j++)
+            {
+                coord[i][j] = 0;
+            }
+    }
+    for (int p = 0; p < mode; p++)
     {
         struct cell *cursor = player[p];
         while (cursor != NULL)
@@ -115,159 +165,34 @@ int load_coord() ///one ply!
     }
     return 0;
 }
-struct cell *find_cell(int player_no, int cell_no)
-{
-    struct cell *cursor = player[player_no];
-    while (--cell_no && cursor != NULL)
-    {
-        cursor = cursor->next;
-    }
-    if (cursor == NULL)
-    {
-        printf("Cell does not Exist!\n");
-        return NULL;
-    }
-    return cursor;
-}
-int move(int player_no, int cell_no, int di, int dj) //use find cell
-{
-    struct cell *cursor = player[player_no];
-    while (--cell_no && cursor != NULL)
-    {
-        cursor = cursor->next;
-    }
-    if (cursor == NULL)
-    {
-        printf("Cell does not Exist!\n");
-        return -2;
-    }
-    int i = cursor->i;
-    int j = cursor->j;
-    if (coord[i + di][j + dj] != 0 || *(char *)(map[i + di][j + dj]) == BLOCKED)
-    {
-        printf("Can not do such Move\n");
-        return -1;
-    }
-    cursor->i += di;
-    cursor->j += dj;
-    coord[i + di] = coord[i];
-    coord[j + dj] = coord[j];
-    coord[i] = 0;
-    coord[j] = 0;
-    return 0;
-}
-int gather(int player_no, int cell_no) //use find cell
-{
-    struct cell *cursor = player[player_no];
-    while (--cell_no && cursor != NULL)
-    {
-        cursor = cursor->next;
-    }
-    if (cursor == NULL)
-    {
-        printf("Cell does not Exist!\n");
-        return -3;
-    }
-    int i = cursor->i;
-    int j = cursor->j;
-    if (*(char *)(map[i][j]) != ENERGY)
-    {
-        printf("Cell Can Gather Energy Only on ENERGY HOUSES!\n");
-        return -2;
-    }
-    int *e = (int *)(map[i][j] + sizeof(char));
-    if (*e <= 0)
-    {
-        printf("House is Empty!");
-        return -1;
-    }
-    if (cursor->energy == 100)
-    {
-        printf("Cell has Maximum Energy!");
-        return -1;
-    }
-    if (*e < 15)
-    {
-        if (cursor->energy + *e <= 100)
-        {
-            cursor->energy += *e;
-            *e = 0;
-            return 0;
-        }
-    }
-    if (*e >= 15)
-    {
-        if (cursor->energy + 15 <= 100)
-        {
-            cursor->energy += 15;
-            *e -= 15;
-            return 0;
-        }
-    }
-    //if energy overflows
-    e -= 100 - cursor->energy;
-    cursor->energy = 100;
-    return 0;
-}
-int divide(int player_no, int cell_no)
-{
-    struct cell *cursor = NULL;
-    find_cell(player_no, cell_no);
-    if (cursor == NULL)
-        return -4;
-    int i = cursor->i;
-    int j = cursor->j;
-    if (*(char *)map[i][j] != MITOSIS)
-    {
-        printf("Cell Division Only Happens on MITOSIS HOUSES!\n");
-        return -3;
-    }
-    if (cursor->energy < 80)
-    {
-        printf("Cell is not Ready for Division!\n(At least 80 Levels of Energy is Needed)\n");
-        return -2;
-    }
-    int di, dj;
-    for (int q = -1; q < 2; q++)
-        for (int p = -1; p < 2; p++)
-            if (coord[i + di][j + dj] == 0 && *(char *)map[i + di][j + dj] != BLOCKED)
-            {
-                int e = cursor->energy;
-                struct cell cell1, cell2;
-                cell1.energy = (int)(e / 2);
-                cell2.energy = e - cell1.energy;
-                cell1.i = i;
-                cell1.j = j;
-                cell2.i = i + q;
-                cell2.j = j + p;
-                remove_cell(&(player[player_no]), cell_no);
-                add_cell(&(player[player_no]), cell1);
-                add_cell(&(player[player_no]), cell2);
-            }
-    printf("NOT ENOUGH SPACE FOR THIS DIVISION!\n");
-    return -1;
-}
 int map_design()
 {
+    TCLEAR();
     FRGB(100, 255, 200);
     //each line
     for (int i = dim - 1; i >= 0; i--)
     {
+        SPACE(75);
+        for (int s = 0; s < dim; s++)
+            printf("\b\b\b\b");
         /* upper level of upper zigzag ->(on odd rows except top row)\
         (in loop)  /\  /\  /\  /\  ...
         (on even rows except top row) / */
         (i % 2 == 0) ? (i != dim - 1) ? printf(" \\ ") : printf("  ") : printf("");
-        for (int j = dim - 1; j >= 0; j--)
+        for (int j = 0; j < dim; j++)
         {
             printf("  /\\ ");
         }
         (i % 2 == 1 && i != dim - 1) ? printf("  /") : printf("");
         printf("\n");
+        SPACE(75);
+        for (int s = 0; s < dim; s++)
+            printf("\b\b\b\b");
         /* down level of upper zigzag ->(on odd rows except top row) \
         (in loop)/  \/  \/  \/  \...
         (on even rows except top row)/*/
-        (i % 2 == 0) ? (i != dim - 1) ? printf("  \\") : printf("  ") : printf("");
-        for (int j = dim - 1; j >= 0; j--)
+        (i % 2 == 0) ? (i != dim - 1) ? printf("  \\") : printf("   ") : printf("");
+        for (int j = 0; j < dim; j++)
         {
             printf(" /");
             TRESET();
@@ -301,8 +226,11 @@ int map_design()
         // the main content of each house
         for (int l = 0; l < 2; l++)
         {
+            SPACE(75);
+            for (int s = 0; s < dim; s++)
+                printf("\b\b\b\b");
             (i % 2 == 0) ? printf("   ") : printf("");
-            for (int j = dim - 1; j >= 0; j--)
+            for (int j = 0; j < dim; j++)
             {
                 printf("|");
                 TRESET();
@@ -321,7 +249,23 @@ int map_design()
                     FRGB(0, 255, 0);
                     break;
                 }
-                (l == 0 && coord[i][j] != 0 && *(char *)map[i][j] != BLOCKED) ? printf("%s", find_cell(coord[i][j] > 0 ? 0 : 1, (coord[i][j] > 0 ? 1 : -1) * coord[i][j])->name) : printf("    ");
+                if (l == 1 && coord[i][j] != 0 && *(char *)map[i][j] != BLOCKED)
+                {
+                    coord[i][j] > 0 ? FRGB(255, 150, 70) : FRGB(255, 255, 100);
+                    /* if (i == 1 && j == 2)
+                    {
+                        int a = coord[i][j];
+                        find_cell(coord[i][j] > 0 ? 0 : 1, (coord[i][j] > 0 ? 1 : -1));
+                    } */
+                    printf("%s", find_cell(coord[i][j] > 0 ? 0 : 1, (coord[i][j] > 0 ? 1 : -1) * coord[i][j])->name);
+                }
+                else if (l == 0 && *(char *)map[i][j] == ENERGY)
+                {
+                    printf(":%0*d", 3, *(int *)(map[i][j] + sizeof(char)));
+                }
+                else
+                    printf("    ");
+
                 TRESET();
                 FRGB(100, 255, 200);
             }
@@ -330,23 +274,370 @@ int map_design()
         // end of main content
     }
     //last zigzag row(neccesserily  \/\/\/\/)
+    SPACE(75);
+    for (int s = 0; s < dim; s++)
+        printf("\b\b\b\b");
     printf("   ");
-    for (int j = dim - 1; j >= 0; j--)
+    for (int j = 0; j < dim; j++)
     {
         printf(" \\  /");
     }
     printf("\n");
+    SPACE(75);
+    for (int s = 0; s < dim; s++)
+        printf("\b\b\b\b");
     printf("   ");
-    for (int j = dim - 1; j >= 0; j--)
+    for (int j = 0; j < dim; j++)
     {
         printf("  \\/ ");
     }
+    printf("\n\n");
+    SPACE(65);
+    FRGB(255, 150, 70);
+    mode == 1 ? printf("player 1") : printf("\b\b\b\bplayer 1");
+    FRGB(255, 255, 100);
+    mode == 1 ? TRESET() : printf(" - player 2\n");
     TRESET();
+}
+void splash()
+{
+    TCLEAR();
+    _sleep(800);
+    SPACE(65);
+    FRGB(10, 255, 25);
+    printf("Lonely Cells\n\n");
+    _sleep(800);
+    TRESET();
+    FRGB(240, 10, 40);
+    SPACE(66);
+    printf("By M_Safari\n\n\n");
+    TRESET();
+    _sleep(200);
+    SPACE(65);
+    rec = fopen("record.lcr", "rb+");
+    printf("[");
+    for (int k = 11; k > 0; k--)
+    {
+        printf("#");
+        _sleep(200);
+    }
+    printf("]\n");
+    _sleep(400);
+    if (rec == NULL)
+        rec = fopen("record.lcr", "wb+");
+}
+int start_menu()
+{
+    int ret;
+    do
+    {
+        TCLEAR();
+        SPACE(65);
+        printf("[1] Load_Game\n");
+        SPACE(56);
+        printf("[2] Start New Single Player Game\n");
+        SPACE(60);
+        printf("[3] Start New Multiplyer\n");
+        SPACE(67);
+        printf("[4] Exit\n");
+        ret = getch() - '0';
+        // ret = 1;
+    } while (ret > 4 || ret < 1);
+    return ret;
+}
+int action_menu(int player_no, int *cell_no)
+{
+    int ret;
+    do
+    {
+        // TCLEAR();
+        printf("\n");
+        SPACE(60);
+        FRGB(60, 200, 100);
+        printf("player no %d\n", player_no + 1);
+        SPACE(60);
+        printf("[1] Move Cell\n");
+        SPACE(58);
+        printf("[2] Gather Energy\n");
+        SPACE(61);
+        printf("[3] Divide\n");
+        SPACE(62);
+        printf("[4] Undo\n");
+        SPACE(62);
+        printf("[5] Save\n");
+        SPACE(59);
+        printf("[6] Score Board\n");
+        SPACE(62);
+        printf("[7] Exit\n");
+        ret = getch() - '0';
+        // ret = 3;
+        switch (ret)
+        {
+        case 7:
+            EXIT();
+        case 6:
+            score_board();
+            break;
+        case 5:
+            game_save();
+            break;
+        case 4:
+            break;
+            //undo;
+        }
+        if (ret < 1 || ret > 3)
+            continue;
+        SPACE(50);
+        FRGB(150, 60, 200);
+        printf("Select Preferred Cell\n");
+        print_list(player[player_no]);
+        scanf("%d", cell_no);
+        // *cell_no = 2;
+        if (find_cell(player_no, *cell_no) != NULL)
+            return ret;
+    } while (1);
+}
+void EXIT()
+{
+    FRGB(120, 90, 255);
+    TCLEAR();
+    printf("\n\n\n\n\n");
+    SPACE(65);
+    printf("Hope You Enjoyed\n\n\n\n\n");
+    _sleep(800);
+    TRESET();
+    exit(0);
 }
 int main()
 {
     srand(time(NULL));
-    init_coord();
-    map = map_reader();
-    map == NULL ? exit(0) : map_design();
+    // splash();
+    switch (start_menu())
+    {
+    case 1:
+    {
+        int temp = 0;
+        int save_no = 1;
+        do
+        {
+            TCLEAR();
+            SPACE(60);
+            printf("Select Map to Load:\n");
+            while (1)
+            {
+                char add[30];
+                sprintf(add, "saves\\save_%0*d.lcs", 3, save_no);
+                FILE *fptr = fopen(add, "rb");
+                if (!fptr)
+                {
+                    // printf("IS NULL");
+                    break;
+                }
+                SPACE(62);
+                printf("<%d> save_number_%d\n", save_no, save_no);
+                save_no++;
+                fclose(fptr);
+            }
+            temp = getchar() - '0';
+            // temp = 1;
+        } while (temp <= 0 || temp > --save_no);
+        save_sel = temp;
+        break;
+    }
+    case 2:
+    {
+        mode = 1;
+        break;
+    }
+    case 3:
+    {
+        mode = 2;
+        break;
+    }
+    case 4:
+    {
+        EXIT();
+    }
+    }
+    if (save_sel == 0)
+    {
+        int temp = 1;
+        do
+        {
+            TCLEAR();
+            SPACE(60);
+            printf("Enter Desired Map For New Game:\n");
+            for (int i = 1; i <= maps; i++)
+            {
+                SPACE(63);
+                printf("%d", i);
+                i == 1 ? printf(" - default_map\n") : printf(" - %s", "read from file\n");
+            }
+            scanf("%d", &temp);
+            // temp = 1;
+        } while (temp < 0 || temp > maps);
+        map_sel = temp;
+        map = map_reader();
+        if (map == (void ***)NULL)
+        {
+            return -1;
+        }
+        int r = -1;
+        temp = 0;
+        do
+        {
+            SPACE(50);
+            printf("Enter the number of cells you want to start with:\n");
+            scanf("%d", &temp);
+            // temp = 3;
+            for (int p = 0; p < mode; p++)
+            {
+                player[p] = NULL;
+                for (int i = temp; i > 0; i--)
+                {
+                    struct cell tmp = {"!!!!", 0, 0, 0, 0, NULL, NULL};
+                    rand_name(tmp.name);
+                    add_cell(&(player[p]), tmp);
+                }
+            }
+            if (!init_coord())
+            {
+                // TCLEAR();
+                // SPACE(60);
+                // printf("PLAYER %d GOT READY! ...\n\n", p + 1);
+                break;
+            }
+            for (int i = 0; i < dim; i++)
+                for (int j = 0; j < dim; j++)
+                {
+                    printf("%d", coord[i][j]);
+                }
+        } while (1);
+        turn = 0;
+    }
+    else
+    {
+        player[1] = NULL;
+        player[2] = NULL;
+        map = map_reader();
+        if (map == (void ***)NULL)
+        {
+            return -1;
+        }
+        load_coord();
+    }
+    map_design();
+    getch();
+    int cell_no, err = 0;
+    while (1)
+    {
+        err = 0;
+        switch (action_menu(turn % mode, &cell_no))
+        {
+        case 1:
+        {
+            int i = 0, j = 0;
+            // do
+            // {
+            i = 0;
+            j = 0;
+            int temp = 0;
+            do
+            {
+                SPACE(50);
+                printf("[1] Northwest");
+                SPACE(5);
+                printf("[2] Northeast\n");
+                SPACE(40);
+                printf("[6] Left");
+                SPACE(35);
+                printf("[3] Right\n");
+                SPACE(50);
+                printf("[4] Southwest");
+                SPACE(5);
+                printf("[5] Southeast\n");
+                temp = getch() - '0';
+                // temp = 2;
+            } while (temp < 0 || temp > 6);
+            /* int d[dim][dim];
+                for (int i = 0; i < dim; i++)
+                for (int j = 0; j < dim; j++)
+                d[i][j] = coord[i][j]; */
+            switch (temp)
+            {
+            case 1:
+            {
+                i = 1;
+                j = (find_cell(turn % mode, cell_no)->i) % 2 == 0 ? 0 : -1;
+                break;
+            }
+            case 2:
+            {
+                i = 1;
+                j = (find_cell(turn % mode, cell_no)->i) % 2 == 1 ? 0 : 1;
+                break;
+            }
+            case 3:
+            {
+                i = 0;
+                j = 1;
+                break;
+            }
+            case 4:
+            {
+                i = -1;
+                j = (find_cell(turn % mode, cell_no)->i) % 2 == 0 ? 0 : -1;
+                break;
+            }
+            case 5:
+            {
+                i = -1;
+                j = (find_cell(turn % mode, cell_no)->i) % 2 == 1 ? 0 : +1;
+                break;
+            }
+            case 6:
+            {
+                i = 0;
+                j = -1;
+                break;
+            }
+            default:
+                err = 1;
+            }
+            // }
+            if (move(turn % mode, cell_no, i, j))
+            {
+                err = 1;
+            }
+            break;
+        }
+        case 2:
+        {
+            if (gather(turn % mode, cell_no))
+            {
+                err = 1;
+            }
+            break;
+        }
+        case 3:
+        {
+            if (divide(turn % mode, cell_no))
+            {
+                err = 1;
+            }
+            break;
+        }
+        }
+        if (err)
+        {
+            printf("an_error_occured_press_any_key_to_play_your_round\n");
+            getch();
+            TCLEAR();
+            map_design();
+            continue;
+        }
+        turn++;
+        map_design();
+        getch();
+    }
 }

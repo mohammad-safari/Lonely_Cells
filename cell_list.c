@@ -14,7 +14,7 @@ int add_cell(struct cell **player, struct cell data)
     cell->next = NULL;
     cell->prev = NULL;
     int no = 1;
-    //make sure that list ecursorists or create list anyway!
+    //make sure that list is available or create list anyway!
     if (*player == NULL)
     {
         cell->no = no;
@@ -35,7 +35,7 @@ int add_cell(struct cell **player, struct cell data)
     cell->prev = insert;
     cursor->next = cell; //append cell to list
     cell->no = ++no;
-    return 0;
+    return no;
 }
 int remove_cell(struct cell **player, int no)
 {
@@ -52,6 +52,8 @@ int remove_cell(struct cell **player, int no)
     {
         *player = cursor->next; //changing head of list
         cursor->next->prev = NULL;
+        cursor = *player;
+        int n = 1;
         free((struct cell *)cursor);
         return 1;
     }
@@ -64,23 +66,39 @@ int remove_cell(struct cell **player, int no)
     cursor->prev->next = cursor->next;
     cursor->next->prev = cursor->prev;
     //:)
+    cursor = *player;
+    int n = 1;
     free((struct cell *)cursor);
-    return 0;
+}
+struct cell *find_cell(int player_no, int cell_no)
+{
+    struct cell *cursor = player[player_no];
+    while (--cell_no && cursor != NULL)
+    {
+        cursor = cursor->next;
+    }
+    if (cursor == NULL)
+    {
+        printf("Cell does not Exist!\n");
+        return NULL;
+    }
+    return cursor;
 }
 void print_list(struct cell *cursor)
 {
+    // struct cell *cursor = player;
     while (cursor != NULL)
     {
         printf("%d) ", cursor->no);
-        printf("%s ", cursor->name);
-        printf("(%d, %d)\n", cursor->j + 1, cursor->i + 1);
+        printf("%s: with Energy -> %d on house", cursor->name, cursor->energy);
+        printf("(%d, %d)\n", cursor->i + 1, cursor->j + 1);
         cursor = cursor->next;
     }
 }
-void rand_name(char **name)
+void rand_name(char *name)
 {
     for (int c = 0; c < 4; c++)
     {
-        *(name[c]) = rand() % 26 + 97;
+        name[c] = rand() % 26 + 97;
     }
 }
