@@ -462,12 +462,24 @@ int main()
             TCLEAR();
             SPACE(60);
             printf("Enter Desired Map For New Game:\n");
-            for (int i = 1; i <= maps; i++)
+            int map_no = 1;
+            while (1)
             {
+                char add[30];
+                sprintf(add, "maps\\map_%0*d.lcm", 3, map_no);
+                FILE *fptr = fopen(add, "rb");
+                if (!fptr)
+                {
+                    // printf("IS NULL");
+                    break;
+                }
                 SPACE(63);
-                printf("%d", i);
-                i == 1 ? printf(" - default_map\n") : printf(" - %s", "read from file\n");
+                printf("<%d>", map_no);
+                map_no == 1 ? printf(" - default_map\n") : printf(" -  Map_no_%d\n", map_no);
+                map_no++;
+                fclose(fptr);
             }
+            maps = --map_no;
             scanf("%d", &temp);
             // temp = 1;
         } while (temp < 0 || temp > maps);
