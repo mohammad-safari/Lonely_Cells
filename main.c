@@ -406,7 +406,7 @@ void EXIT()
 int main()
 {
     srand(time(NULL));
-    // splash();
+    splash();
     switch (start_menu())
     {
     case 1:
