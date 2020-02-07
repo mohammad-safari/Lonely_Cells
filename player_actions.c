@@ -101,7 +101,7 @@ int divide(int player_no, int cell_no)
     for (int q = -1; q < 2; q++)
         for (int p = -1; p < 2; p++)
         {
-            if (q * p == 1 * (find_cell(player_no, cell_no)->i % 2 == 0 ? -1 : 1))
+            if (q != 0 && p == -1 * (find_cell(player_no, cell_no)->i % 2 == 0 ? -1 : 1))
                 continue;
             if (i + q <= dim && i + q > 0 && j + p <= dim && j + p > 0)
                 if (coord[i + q][j + p] == 0 && *(char *)map[i + q][j + p] != BLOCKED)
